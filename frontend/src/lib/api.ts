@@ -1,4 +1,4 @@
-const BASE = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8000";
+const BASE = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://127.0.0.1:8000";
 
 export interface User {
   id: string;
@@ -37,12 +37,13 @@ export async function getMe(apiKey: string): Promise<User> {
 
 export async function generateImage(
   apiKey: string,
-  prompt: string
+  prompt: string,
+  model: string
 ): Promise<GenerateResult> {
   const res = await fetch(`${BASE}/generate`, {
     method: "POST",
     headers: headers(apiKey),
-    body: JSON.stringify({ prompt }),
+    body: JSON.stringify({ prompt, model }),
   });
   if (!res.ok) {
     const err: ApiError = await res.json();
