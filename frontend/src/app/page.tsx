@@ -9,6 +9,7 @@ const HARDCODED_API_KEY = "test-api-key-123";
 const MODELS = [
   { value: "dev",     label: "Flux Dev",             desc: "Open weights (Default)" },
   { value: "flux1.1", label: "Flux 1.1 Pro",         desc: "High quality (Backup)" },
+  { value: "gemini",  label: "Gemini",               desc: "Google Gemini API" },
 ];
 
 // ─── User Card ────────────────────────────────────────────────────────────────
