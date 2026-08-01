@@ -100,8 +100,13 @@ class SimpleAppHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         parsed_path = urlparse(self.path)
         if parsed_path.path == "/generate":
-            # Dummy user check removed so it just works
-            user = {"id": "00000000-0000-0000-0000-000000000000", "credits": 999}
+            api_key = self.headers.get("X-API-Key")
+            user = get_user_data(api_key) if SUPABASE_URL else None
+            if not user:
+                user = {"id": "test-user-id", "credits": 999}
+            
+            if user.get("credits", 0) <= 0:
+                return self.send_error_json(402, "Insufficient credits")
 
             content_length = int(self.headers.get('Content-Length', 0))
             post_data = self.rfile.read(content_length)
@@ -121,33 +126,33 @@ class SimpleAppHandler(BaseHTTPRequestHandler):
             # version=str   → use /v1/predictions with {"version": ...}  (legacy API)
             MODEL_MAP = {
                 "sdxl": {
-                    "env": "REPLICATE_API_TOKEN_imagen",
                     "model": "bytedance/sdxl-lightning-4step",
                     "version": None,
                 },
                 "flux": {
-                    "env": "REPLICATE_API_TOKEN_flux",
                     "model": "fofr/flux-schnell",
                     "version": None,
                 },
                 "flux1.1": {
-                    "env": "REPLICATE_API_TOKEN_flux1.1",
                     "model": "black-forest-labs/flux-1.1-pro",
                     "version": None,
                 },
                 "dev": {
-                    "env": "REPLICATE_API_TOKEN_dev",
                     "model": "black-forest-labs/flux-dev",
+                    "version": None,
+                },
+                "gemini": {
+                    "model": "gemini",
                     "version": None,
                 },
             }
 
             cfg = MODEL_MAP.get(model_choice, MODEL_MAP["dev"])
-            replicate_api_token = os.getenv(cfg["env"]) or os.getenv("REPLICATE_API_TOKEN")
+            replicate_api_token = os.getenv("REPLICATE_API_TOKEN")
             if not replicate_api_token:
-                return self.send_error_json(500, f"API token for model '{model_choice}' is not configured in backend/.env (expected key: {cfg['env']})")
+                return self.send_error_json(500, "REPLICATE_API_TOKEN is not configured in backend/.env")
 
-            print(f"[generate] model={model_choice} | token_key={cfg['env']} | replicate_model={cfg.get('model') or 'versioned:'+cfg['version'][:8]}")
+            print(f"[generate] model={model_choice} | replicate_model={cfg.get('model') or 'versioned:'+cfg['version'][:8]}")
 
             try:
                 auth_headers = {
@@ -162,42 +167,80 @@ class SimpleAppHandler(BaseHTTPRequestHandler):
                     "disable_safety_checker": True,
                 }
 
-                # Choose endpoint based on whether model has a fixed version hash
-                if cfg.get("version"):
-                    resp = httpx.post(
-                        "https://api.replicate.com/v1/predictions",
-                        headers=auth_headers,
-                        json={"version": cfg["version"], "input": model_input},
+                if model_choice == "gemini":
+                    import base64
+
+                    gemini_url = (
+                        "https://generativelanguage.googleapis.com/v1beta/"
+                        "models/imagen-3.0-generate-002:predict"
+                        f"?key={replicate_api_token}"
+                    )
+                    gemini_resp = httpx.post(
+                        gemini_url,
+                        headers={"Content-Type": "application/json"},
+                        json={
+                            "instances": [{"prompt": prompt}],
+                            "parameters": {
+                                "sampleCount": 1,
+                            },
+                        },
                         timeout=120,
                     )
+                    gemini_data = gemini_resp.json()
+
+                    if gemini_resp.status_code != 200:
+                        error_msg = gemini_data.get("error", {}).get("message", "Unknown Gemini API error")
+                        return self.send_error_json(500, f"Gemini API error: {error_msg}")
+
+                    predictions = gemini_data.get("predictions", [])
+                    if not predictions:
+                        return self.send_error_json(500, "Gemini returned no images")
+
+                    b64 = predictions[0]["bytesBase64Encoded"]
+                    mime = predictions[0].get("mimeType", "image/png")
+                    image_url = f"data:{mime};base64,{b64}"
                 else:
-                    resp = httpx.post(
-                        f"https://api.replicate.com/v1/models/{cfg['model']}/predictions",
-                        headers=auth_headers,
-                        json={"input": model_input},
-                        timeout=120,
-                    )
+                    if cfg.get("version"):
+                        resp = httpx.post(
+                            "https://api.replicate.com/v1/predictions",
+                            headers=auth_headers,
+                            json={"version": cfg["version"], "input": model_input},
+                            timeout=120,
+                        )
+                    else:
+                        resp = httpx.post(
+                            f"https://api.replicate.com/v1/models/{cfg['model']}/predictions",
+                            headers=auth_headers,
+                            json={"input": model_input},
+                            timeout=120,
+                        )
 
-                prediction = resp.json()
-                if resp.status_code not in (200, 201):
-                    return self.send_error_json(500, f"Replicate API error: {prediction.get('detail', 'Unknown')}")
+                    prediction = resp.json()
+                    if resp.status_code not in (200, 201):
+                        return self.send_error_json(500, f"Replicate API error: {prediction.get('detail', 'Unknown')}")
 
-                # Poll for completion if not yet done (Prefer:wait may still need polling)
-                poll_count = 0
-                while prediction.get("status") not in ["succeeded", "failed", "canceled"]:
-                    time.sleep(2)
-                    poll_url = prediction["urls"]["get"]
-                    poll_resp = httpx.get(poll_url, headers=auth_headers, timeout=30)
-                    prediction = poll_resp.json()
-                    poll_count += 1
-                    if poll_count > 60:
-                        return self.send_error_json(500, "Replicate timed out after 2 minutes")
+                    # Poll for completion if not yet done (Prefer:wait may still need polling)
+                    poll_count = 0
+                    while prediction.get("status") not in ["succeeded", "failed", "canceled"]:
+                        time.sleep(2)
+                        poll_url = prediction["urls"]["get"]
+                        poll_resp = httpx.get(poll_url, headers=auth_headers, timeout=30)
+                        prediction = poll_resp.json()
+                        poll_count += 1
+                        if poll_count > 60:
+                            return self.send_error_json(500, "Replicate timed out after 2 minutes")
 
-                if prediction.get("status") != "succeeded":
-                    return self.send_error_json(500, f"Replicate failed: {prediction.get('error', 'Unknown')}")
+                    if prediction.get("status") != "succeeded":
+                        return self.send_error_json(500, f"Replicate failed: {prediction.get('error', 'Unknown')}")
 
-                output = prediction.get("output")
-                image_url = output[0] if isinstance(output, list) else output
+                    output = prediction.get("output")
+                    image_url = output[0] if isinstance(output, list) else output
+
+                # Deduct credits after successful generation
+                new_credits = user["credits"] - 1
+                if SUPABASE_URL:
+                    save_user_data(api_key, new_credits)
+                user["credits"] = new_credits
 
             except Exception as e:
                 import traceback
