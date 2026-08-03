@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "AI Image Generator",
-  description: "Generate AI images with Stable Diffusion XL, powered by Replicate and Supabase.",
+  description: "Generate AI images with Gemini Imagen 3.0",
 };
 
 export default function RootLayout({

@@ -1,4 +1,4 @@
-const BASE = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://127.0.0.1:8000";
+const BASE = "/api";
 
 export interface User {
   id: string;
@@ -10,7 +10,6 @@ export interface GenerateResult {
   status: string;
   message: string;
   image_url: string;
-  local_filename: string;
   product_id: string | null;
   remaining_credits: number;
 }
@@ -19,15 +18,8 @@ export interface ApiError {
   detail: string;
 }
 
-function headers(apiKey: string): HeadersInit {
-  return {
-    "Content-Type": "application/json",
-    "X-API-Key": apiKey,
-  };
-}
-
-export async function getMe(apiKey: string): Promise<User> {
-  const res = await fetch(`${BASE}/me`, { headers: headers(apiKey) });
+export async function getMe(): Promise<User> {
+  const res = await fetch(`${BASE}/me`);
   if (!res.ok) {
     const err: ApiError = await res.json();
     throw new Error(err.detail ?? "Failed to fetch user");
@@ -36,14 +28,12 @@ export async function getMe(apiKey: string): Promise<User> {
 }
 
 export async function generateImage(
-  apiKey: string,
-  prompt: string,
-  model: string
+  prompt: string
 ): Promise<GenerateResult> {
   const res = await fetch(`${BASE}/generate`, {
     method: "POST",
-    headers: headers(apiKey),
-    body: JSON.stringify({ prompt, model }),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt }),
   });
   if (!res.ok) {
     const err: ApiError = await res.json();

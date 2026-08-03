@@ -1,7 +1,0 @@
-fastapi
-uvicorn[standard]
-replicate
-python-dotenv
-python-multipart
-httpx
-supabase
