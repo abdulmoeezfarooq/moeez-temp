@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const promptEncoded = encodeURIComponent(prompt);
-    const pollinationsUrl = `https://image.pollinations.ai/prompt/${promptEncoded}?nologo=true`;
+    const pollinationsUrl = `https://image.pollinations.ai/prompt/${promptEncoded}?nologo=true&model=flux&width=1024&height=1024&enhance=true`;
 
     const pollinationsResp = await fetch(pollinationsUrl);
 

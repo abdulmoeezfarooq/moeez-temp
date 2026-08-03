@@ -191,6 +191,14 @@ export default function App() {
     }
   }, []);
 
+  function handleDelete(id: string) {
+    setHistory((prev) => {
+      const newHistory = prev.filter(item => item.id !== id);
+      localStorage.setItem("generation_history", JSON.stringify(newHistory));
+      return newHistory;
+    });
+  }
+
   function handleResult(res: GenerateResult, remainingCredits: number, prompt: string) {
     setResult(res);
     setUser((u) => (u ? { ...u, credits: remainingCredits } : u));
@@ -294,16 +302,25 @@ export default function App() {
                       <p className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider">
                         {new Date(item.timestamp).toLocaleDateString()}
                       </p>
-                      <a 
-                        href={item.image_url} 
-                        download={`history-${item.timestamp}.jpg`}
-                        className="text-zinc-500 hover:text-green-400 hover:bg-green-500/10 p-1.5 rounded-md transition-all relative z-20"
-                        title="Download image"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                        </svg>
-                      </a>
+                      <div className="flex items-center gap-1 relative z-20">
+                        <a 
+                          href={item.image_url} 
+                          download={`history-${item.timestamp}.jpg`}
+                          className="text-zinc-500 hover:text-green-400 hover:bg-green-500/10 p-1.5 rounded-md transition-all"
+                          title="Download image"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                          </svg>
+                        </a>
+                        <button
+                          onClick={() => handleDelete(item.id)}
+                          className="text-zinc-500 hover:text-red-400 hover:bg-red-500/10 p-1.5 rounded-md transition-all"
+                          title="Delete image"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
