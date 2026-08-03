@@ -242,11 +242,11 @@ export default function App() {
       <div className="relative flex items-center justify-center gap-3 mb-2 z-10">
         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500/20 to-red-500/20 border border-white/10 flex items-center justify-center shadow-lg backdrop-blur-sm">
           <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
         </div>
         <h1 className="text-2xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-green-400 to-red-400">
-          Chroma<span className="font-light text-zinc-300">Gen</span>
+          Magni<span className="font-light text-zinc-300">fy</span>
         </h1>
       </div>
 
